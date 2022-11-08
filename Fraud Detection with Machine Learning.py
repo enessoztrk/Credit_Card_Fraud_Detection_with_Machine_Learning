@@ -1,27 +1,23 @@
-# **EEE-CIS Fraud Detection** #
-
+###########################
+# EEE-CIS Fraud Detection #
+###########################
 
 # Importing Libraries
-
 import gc
 import time
 import datetime
 import numpy as np
 import pandas as pd
+import seaborn as sns
+import missingno as msno
+import matplotlib.pyplot as plt
 from lightgbm import LGBMClassifier
 from contextlib import contextmanager
 from sklearn.metrics import roc_auc_score
 from sklearn import metrics, preprocessing
-
 from sklearn.model_selection import KFold
 from sklearn.model_selection import GridSearchCV
-
 from sklearn.decomposition import PCA
-
-import seaborn as sns
-import missingno as msno
-import matplotlib.pyplot as plt
-
 from sklearn.preprocessing import LabelEncoder
 
 pd.set_option('display.max_rows', 999)
@@ -29,14 +25,12 @@ pd.set_option('display.max_columns', 700)
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
 import warnings
-
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
 # Reduce Memory Usage
-
 def reduce_mem_usage(df, verbose=True):
     numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
     start_mem = df.memory_usage().sum() / 1024 ** 2
@@ -69,16 +63,17 @@ def reduce_mem_usage(df, verbose=True):
 
 
 # Loading Data
-
 train_transaction = pd.read_csv("/kaggle/input/ieee-fraud-detection/train_transaction.csv")
 train_identity = pd.read_csv("/kaggle/input/ieee-fraud-detection/train_identity.csv")
 
 test_transaction = pd.read_csv("/kaggle/input/ieee-fraud-detection/test_transaction.csv")
 test_identity = pd.read_csv("/kaggle/input/ieee-fraud-detection/test_identity.csv")
 
+
 # Fix Column Name
 fix_col_name = {testIdCol: trainIdCol for testIdCol, trainIdCol in zip(test_identity.columns, train_identity.columns)}
 test_identity.rename(columns=fix_col_name, inplace=True)
+
 
 # Reduce Memory
 train_transaction = reduce_mem_usage(train_transaction)
@@ -87,9 +82,11 @@ train_identity = reduce_mem_usage(train_identity)
 test_transaction = reduce_mem_usage(test_transaction)
 test_identity = reduce_mem_usage(test_identity)
 
+
 # Merge (transaction - identity)
 train = train_transaction.merge(train_identity, on='TransactionID', how='left')
 test = test_transaction.merge(test_identity, on='TransactionID', how='left')
+
 
 # Merge (X_train - X_test)
 train_test = pd.concat([train, test], ignore_index=True)
@@ -106,7 +103,6 @@ test = test.copy()
 
 
 # Exploratory Data Analysis (EDA)
-
 def check_df(df, head=5):
     print("##################### Shape #####################")
     print(df.shape)
@@ -120,12 +116,10 @@ def check_df(df, head=5):
     print("##################### NA #####################")
     print(df.isnull().sum())
 
-
 check_df(train)
 
 
 # Function of Missing Values
-
 def missing_values_table(dataframe, na_name=False):
     na_columns = [col for col in dataframe.columns if dataframe[col].isnull().sum() > 0]
     n_miss = dataframe[na_columns].isnull().sum().sort_values(ascending=False)
@@ -139,7 +133,6 @@ missing_values_table(train, na_name=False)
 
 
 ## Exploring Target Features - isFraud
-
 train_fraud = train.loc[train['isFraud'] == 1]
 train_non_fraud = train.loc[train['isFraud'] == 0]
 
@@ -149,22 +142,17 @@ train['isFraud'].value_counts(normalize=True)
 sns.countplot(x="isFraud", data=train).set_title('Distribution of Target')
 plt.show()
 
-# %% md
+
 
 ## Exploring Continuous Features
 
-
-# %% md
-
 #### TransactionDT
-
 plt.figure(figsize=(15, 5))
 sns.distplot(train["TransactionDT"])
 sns.distplot(test["TransactionDT"])
 plt.title('train vs test TransactionDT distribution')
 plt.show()
 
-# %%
 
 plt.figure(figsize=(15, 5))
 sns.distplot(train_fraud["TransactionDT"], color='b', label='Fraud')
@@ -172,11 +160,8 @@ sns.distplot(train_non_fraud["TransactionDT"], color='r', label='non-Fraud')
 plt.title('Fraud vs non-Fraud TransactionDT Distribution')
 plt.legend()
 
-# %% md
 
 ##### Feature Extraction Taking the start date ‘2015-04-22’, constructed time variables. In discussions tab you should read an excellent solutions.
-
-# %%
 
 START_DATE = '2017-12-01'
 startdate = datetime.datetime.strptime(START_DATE, "%Y-%m-%d")
@@ -197,32 +182,25 @@ train_test.groupby('New_Date_Hour')['isFraud'].mean().to_frame().plot.bar(ax=ax[
 train_test.groupby('New_Date_Day')['isFraud'].mean().to_frame().plot.bar(ax=ax[2])
 train_test.groupby('New_Date_YearMonth')['isFraud'].mean().to_frame().plot.bar(ax=ax[3])
 
-# %% md
 
 #### TransactionAmt
 
 # TransactionAmt:
-
-# %%
-
 print(pd.concat([train['TransactionAmt'].quantile([.01, .1, .25, .5, .75, .9, .99]).reset_index(),
                  train_fraud['TransactionAmt'].quantile([.01, .1, .25, .5, .75, .9, .99]).reset_index(),
                  train_non_fraud['TransactionAmt'].quantile([.01, .1, .25, .5, .75, .9, .99]).reset_index()],
                 axis=1, keys=['Total', 'Fraud', "No Fraud"]))
 
-# %%
 
 print(' Fraud TransactionAmt mean      :  ' + str(train_fraud['TransactionAmt'].mean()))
 print(' Non - Fraud TransactionAmt mean:  ' + str(train_non_fraud['TransactionAmt'].mean()))
 
-# %%
 
 plt.figure(figsize=(15, 5))
 sns.distplot(train_test["TransactionAmt"].apply(np.log))
 plt.title('Train - Test TransactionAmt distribution')
 plt.show()
 
-# %%
 
 plt.figure(figsize=(15, 5))
 sns.distplot(train_fraud["TransactionAmt"].apply(np.log), label='Fraud | isFraud = 1')
@@ -231,34 +209,26 @@ plt.title('Fraud vs non-Fraud TransactionAmt distribution')
 plt.legend()
 plt.show()
 
-# %%
-
 train['New_TransactionAmt_Bin'] = pd.qcut(train['TransactionAmt'], 15)
 train.groupby('New_TransactionAmt_Bin')[['isFraud']].mean()
 
-# %% md
 
 #### dist1 & dist2
-# %%
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
 train['dist1'].plot(kind='hist', bins=5000, ax=ax1, title='dist1 distribution', logx=True)
 train['dist2'].plot(kind='hist', bins=5000, ax=ax2, title='dist2 distribution', logx=True)
 plt.show()
 
-# %% md
 
 ## Exploring Categorical Features
+
 ### Categorical Features
 # ProductCD
 # addr1 & addr2
 # P_emaildomain & R_emaildomain
 # DeviceType
 # DeviceInfo
-
-
-# %%
-
 def getCatFeatureDetail(df, cat_cols):
     cat_detail_dict = {}
     for col in cat_cols:
@@ -277,8 +247,6 @@ getCatFeatureDetail(train_test, cat_features)
 
 
 ### ProductCD
-
-
 def ploting_cnt_amt(df, col, lim=2000):
     tmp = pd.crosstab(df[col], df['isFraud'], normalize='index') * 100
     tmp = tmp.reset_index()
@@ -312,24 +280,12 @@ def ploting_cnt_amt(df, col, lim=2000):
     plt.show()
 
 
-# %%
-
 ploting_cnt_amt(train, 'ProductCD')
 
-# %% md
 
 ### addr1 - addr2
-
-# %%
-
 train['addr1'].value_counts().head(10)
-
-# %%
-
 train['addr2'].value_counts().head(10)
-
-# %%
-
 train.loc[
     train['addr1'].isin(train['addr1'].value_counts()[train['addr1'].value_counts() <= 5000].index), 'addr1'] = "Others"
 train.loc[
@@ -344,31 +300,15 @@ test['addr1'].fillna("NoInf", inplace=True)
 train['addr2'].fillna("NoInf", inplace=True)
 test['addr2'].fillna("NoInf", inplace=True)
 
-# %%
-
 ploting_cnt_amt(train, "addr1")
-
-# %%
-
 ploting_cnt_amt(train, "addr2")
 
-# %% md
 
 ### P-emaildomain & R-emaildomain
 
-# %% md
-
 ### P-emaildomain
-
-
-# %%
-
 train['P_emaildomain'].value_counts()
-
-# %%
-
 train.loc[train['P_emaildomain'].isin(['gmail.com', 'gmail']), 'P_emaildomain'] = 'Google'
-
 train.loc[train['P_emaildomain'].isin(['yahoo.com', 'yahoo.com.mx', 'yahoo.co.uk',
                                        'yahoo.co.jp', 'yahoo.de', 'yahoo.fr',
                                        'yahoo.es']), 'P_emaildomain'] = 'Yahoo Mail'
