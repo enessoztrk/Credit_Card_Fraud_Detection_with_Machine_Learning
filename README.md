@@ -26,4 +26,6 @@
 - Variables in this table are identity information – network connection information (IP, ISP, Proxy, etc) and digital signature (UA/browser/os/version, etc) associated with transactions. They're collected by Vesta’s fraud protection system and digital security partners. (The field names are masked and pairwise dictionary will not be provided for privacy protection and contract agreement)
 
 - Categorical Features: DeviceType, DeviceInfo, id_12 - id_38
+
+![img1](https://github.com/enessoztrk/Fraud_Detection_with_Machine_Learning/blob/main/img/fraud1.PNG?raw=true)
 ​
