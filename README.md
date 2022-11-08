@@ -1,7 +1,9 @@
 # Fraud Detection with Machine Learning
 - The data comes from Vesta's real-world e-commerce transactions and contains a wide range of features from device type to product features.
-![img](https://github.com/enessoztrk/Fraud_Detection_with_Machine_Learning/blob/main/img/fraud.PNG?raw=true)
+
 ## What is Fraud Detection?
+![img](https://github.com/enessoztrk/Fraud_Detection_with_Machine_Learning/blob/main/img/fraud.PNG?raw=true)
+
 - Fraud detection protects person information, assets, accounts and transactions through the real-time, near-real-time analysis of activities by users and other defined entities. It uses background server-based processes that examine users’ and other defined entities’ access and behavior patterns, and typically compares this information to a profile of what’s expected.
 - Project is live now visit at https://www.kaggle.com/code/enesztrk/fraud-detection-with-machine-learning
 ​
