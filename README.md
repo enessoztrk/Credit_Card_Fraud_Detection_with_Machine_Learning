@@ -1,4 +1,4 @@
-# Fraud Detection with Machine Learning
+# Credit Card Fraud Detection with Machine Learning
 - The data comes from Vesta's real-world e-commerce transactions and contains a wide range of features from device type to product features.
 
 ## What is Fraud Detection?
